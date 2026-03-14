@@ -70,9 +70,12 @@ async function main() {
 
   const marketExpectedFields = [
     'id',
+    'conditionId',
     'question',
     'slug',
     'category',
+    'endDateIso',
+    // Back-compat alias still present in interface:
     'end_date_iso',
     'active',
     'closed',
@@ -82,19 +85,22 @@ async function main() {
     'spread',
   ] satisfies Array<keyof PolymarketMarket>;
 
-  const tokenExpectedFields = ['token_id', 'outcome', 'price'];
+  const tokenExpectedFields = ['tokenId', 'token_id', 'outcome', 'price'];
 
   const tradeExpectedFields = [
     'id',
-    'taker_order_id',
-    'market',
-    'asset_id',
+    'conditionId',
+    'assetId',
     'side',
     'size',
     'price',
     'timestamp',
     'outcome',
     'trader',
+    'transactionHash',
+    // Back-compat aliases still present in interface:
+    'market',
+    'asset_id',
     'transaction_hash',
   ] satisfies Array<keyof PolymarketTrade>;
 
@@ -110,6 +116,7 @@ async function main() {
   const gammaResult = await safeFetchJson(gammaUrl);
 
   let tokenIdForStep2: string | null = null;
+  const tokenCandidatesForStep2: string[] = [];
 
   if (!gammaResult.ok) {
     reportLines.push('## 1) Gamma API');
@@ -151,7 +158,37 @@ async function main() {
       clobTokenIds = clobTokenIdsRaw.filter((x: any) => typeof x === 'string');
     }
 
-    tokenIdForStep2 = tokenRaw?.token_id ?? tokenRaw?.asset_id ?? clobTokenIds[0] ?? null;
+    tokenCandidatesForStep2.push(
+      ...(isArray(markets)
+        ? markets.flatMap((m: any) => {
+            const parsed = (() => {
+              const val = m?.clobTokenIds;
+              if (Array.isArray(val)) return val;
+              if (typeof val === 'string') {
+                try {
+                  const j = JSON.parse(val);
+                  return Array.isArray(j) ? j : [];
+                } catch {
+                  return [];
+                }
+              }
+              return [];
+            })();
+            return parsed.filter((x: any) => typeof x === 'string');
+          })
+        : []),
+    );
+
+    if (tokenRaw?.token_id) tokenCandidatesForStep2.unshift(tokenRaw.token_id);
+    if (tokenRaw?.asset_id) tokenCandidatesForStep2.unshift(tokenRaw.asset_id);
+    if (clobTokenIds[0]) tokenCandidatesForStep2.unshift(clobTokenIds[0]);
+
+    // Deduplicate while preserving order.
+    const deduped = [...new Set(tokenCandidatesForStep2)];
+    tokenCandidatesForStep2.length = 0;
+    tokenCandidatesForStep2.push(...deduped);
+
+    tokenIdForStep2 = tokenCandidatesForStep2[0] ?? null;
 
     if (hasConditionId && hasId) {
       marketCmp.notes.push('Both condition_id and id exist in market payload.');
@@ -181,6 +218,7 @@ async function main() {
     reportLines.push(`- URL: \`${gammaUrl}\``);
     reportLines.push(`- Status: ${gammaResult.status}`);
     reportLines.push(`- First market token picked for CLOB test: ${tokenIdForStep2 ?? '(none found)'}`);
+    reportLines.push(`- Token candidates scanned for CLOB midpoint: ${tokenCandidatesForStep2.length}`);
     reportLines.push('');
     reportLines.push('### First market (raw)');
     reportLines.push('```json');
@@ -211,15 +249,44 @@ async function main() {
     reportLines.push('- ⚠️ Skipped: no token_id found from Gamma response.');
     reportLines.push('');
   } else {
-    const clobUrl = `https://clob.polymarket.com/midpoint?token_id=${encodeURIComponent(tokenIdForStep2)}`;
-    log('CLOB request:', clobUrl);
-    const clobResult = await safeFetchJson(clobUrl);
+    // API-SHAPE-REPORT note: first token can be stale and return 404.
+    // To satisfy verification reliably, try multiple candidate token IDs until midpoint succeeds.
+    let clobResult: FetchResult | null = null;
+    let clobUrl = '';
 
-    if (!clobResult.ok) {
-      reportLines.push(`- ❌ Request failed: status=${clobResult.status}`);
-      reportLines.push('```text');
-      reportLines.push(clobResult.body);
-      reportLines.push('```');
+    for (const candidate of tokenCandidatesForStep2.slice(0, 25)) {
+      clobUrl = `https://clob.polymarket.com/midpoint?token_id=${encodeURIComponent(candidate)}`;
+      log('CLOB request:', clobUrl);
+      const attempt = await safeFetchJson(clobUrl);
+      if (attempt.ok) {
+        clobResult = attempt;
+        tokenIdForStep2 = candidate;
+        break;
+      }
+    }
+
+    // Fallback: API-SHAPE-REPORT shows Data API has live trade `asset` token IDs.
+    // Use one of those assets if Gamma candidate token IDs are stale.
+    if (!clobResult) {
+      const tradeSeed = await safeFetchJson('https://data-api.polymarket.com/trades?limit=10');
+      if (tradeSeed.ok && Array.isArray(tradeSeed.data)) {
+        for (const t of tradeSeed.data) {
+          const asset = t?.asset;
+          if (!asset || typeof asset !== 'string') continue;
+          clobUrl = `https://clob.polymarket.com/midpoint?token_id=${encodeURIComponent(asset)}`;
+          log('CLOB fallback request:', clobUrl);
+          const attempt = await safeFetchJson(clobUrl);
+          if (attempt.ok) {
+            clobResult = attempt;
+            tokenIdForStep2 = asset;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!clobResult || !clobResult.ok) {
+      reportLines.push(`- ❌ Request failed for all candidates (tried ${Math.min(tokenCandidatesForStep2.length, 25)} + Data API fallback)`);
       reportLines.push('');
     } else {
       const clobRaw = clobResult.data;
@@ -231,6 +298,7 @@ async function main() {
 
       reportLines.push(`- URL: \`${clobUrl}\``);
       reportLines.push(`- Status: ${clobResult.status}`);
+      reportLines.push(`- Working token_id: ${tokenIdForStep2}`);
       reportLines.push('');
       reportLines.push('### Raw response');
       reportLines.push('```json');

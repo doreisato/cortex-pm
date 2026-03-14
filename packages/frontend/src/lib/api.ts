@@ -143,6 +143,12 @@ export interface WalletTrade {
   total_cost: number;
   traded_at: string;
   tracked_wallets?: { label: string; tier: string };
+
+  // API-SHAPE-REPORT alignment: backend now normalizes Data API camelCase fields.
+  // These are optional aliases to keep frontend types resilient during migration.
+  conditionId?: string;
+  assetId?: string;
+  transactionHash?: string;
 }
 
 export interface TrackedWallet {

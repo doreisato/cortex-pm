@@ -1,12 +1,13 @@
 # API SHAPE REPORT
 
-Generated: 2026-03-14T10:09:09.675Z
+Generated: 2026-03-14T11:24:44.419Z
 
 ## 1) Gamma API
 
 - URL: `https://gamma-api.polymarket.com/markets?limit=3&active=true`
 - Status: 200
 - First market token picked for CLOB test: 53135072462907880191400140706440867753044989936304433583131786753949599718775
+- Token candidates scanned for CLOB midpoint: 6
 
 ### First market (raw)
 ```json
@@ -130,25 +131,33 @@ Generated: 2026-03-14T10:09:09.675Z
 ```
 
 ### Market field comparison
-- Fields that match: active, category, closed, id, liquidity, question, slug, spread, volume
+- Fields that match: active, category, closed, conditionId, endDateIso, id, liquidity, question, slug, spread, volume
 - Fields that need renaming / are missing in real payload: end_date_iso, tokens
-- Fields missing from our type (unexpected in real payload): approved, archived, bestAsk, bestBid, clearBookOnStart, clobTokenIds, closedTime, competitive, conditionId, createdAt, creator, cyom, deploying, description, endDate, endDateIso, events, feeType, feesEnabled, fpmmLive, funded, hasReviewedDates, holdingRewardsEnabled, icon, image, lastTradePrice, liquidityNum, mailchimpTag, manualActivation, marketMakerAddress, marketType, negRiskOther, oneDayPriceChange, oneHourPriceChange, oneMonthPriceChange, oneWeekPriceChange, oneYearPriceChange, outcomePrices, outcomes, pagerDutyNotificationEnabled, pendingDeployment, ready, readyForCron, requiresTranslation, restricted, rewardsMaxSpread, rewardsMinSize, rfqEnabled, twitterCardImage, umaResolutionStatuses, updatedAt, updatedBy, volume1mo, volume1moAmm, volume1moClob, volume1wk, volume1wkAmm, volume1wkClob, volume1yr, volume1yrAmm, volume1yrClob, volume24hr, volumeNum
+- Fields missing from our type (unexpected in real payload): approved, archived, bestAsk, bestBid, clearBookOnStart, clobTokenIds, closedTime, competitive, createdAt, creator, cyom, deploying, description, endDate, events, feeType, feesEnabled, fpmmLive, funded, hasReviewedDates, holdingRewardsEnabled, icon, image, lastTradePrice, liquidityNum, mailchimpTag, manualActivation, marketMakerAddress, marketType, negRiskOther, oneDayPriceChange, oneHourPriceChange, oneMonthPriceChange, oneWeekPriceChange, oneYearPriceChange, outcomePrices, outcomes, pagerDutyNotificationEnabled, pendingDeployment, ready, readyForCron, requiresTranslation, restricted, rewardsMaxSpread, rewardsMinSize, rfqEnabled, twitterCardImage, umaResolutionStatuses, updatedAt, updatedBy, volume1mo, volume1moAmm, volume1moClob, volume1wk, volume1wkAmm, volume1wkClob, volume1yr, volume1yrAmm, volume1yrClob, volume24hr, volumeNum
 - Note: id exists; condition_id missing.
 - Note: slug sample: will-joe-biden-get-coronavirus-before-the-election
 - Note: end_date_iso missing; date-like fields: endDate, endDateIso, pendingDeployment, updatedAt, updatedBy
 
 ### Tokens[0] field comparison
 - Fields that match: (none)
-- Fields that need renaming / are missing in real payload: outcome, price, token_id
+- Fields that need renaming / are missing in real payload: outcome, price, tokenId, token_id
 - Fields missing from our token type: (none)
 
 ## 2) CLOB API midpoint
 
-- ❌ Request failed: status=404
-```text
-{"error":"No orderbook exists for the requested token id"}
+- URL: `https://clob.polymarket.com/midpoint?token_id=62181489211484258583502804662129357582323227030588631979520171474339901212313`
+- Status: 200
+- Working token_id: 62181489211484258583502804662129357582323227030588631979520171474339901212313
 
+### Raw response
+```json
+{
+  "mid": "0.965"
+}
 ```
+
+- Keys: mid
+- Expected shape { mid: string }: ✅ yes
 
 ## 3) Data API trades
 
@@ -158,32 +167,32 @@ Generated: 2026-03-14T10:09:09.675Z
 ### First trade (raw)
 ```json
 {
-  "proxyWallet": "0x850d7d3ab86ef8f429288aae99c81dc586e6d195",
+  "proxyWallet": "0xf82404c6a136fb45f8de5f1769ee5f4afd1189a0",
   "side": "BUY",
-  "asset": "98917950686053825668988994148740150856177479565821374238248103238328300640396",
-  "conditionId": "0x6aa6f1f08d6b9feb3e711f2699920a45c19f9c36f118ac6a5be868128906bf9c",
-  "size": 6,
-  "price": 0.6416666666666667,
-  "timestamp": 1773482925,
-  "title": "Solana Up or Down - March 14, 6:05AM-6:10AM ET",
-  "slug": "sol-updown-5m-1773482700",
-  "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/SOL+fullsize.png",
-  "eventSlug": "sol-updown-5m-1773482700",
-  "outcome": "Down",
-  "outcomeIndex": 1,
-  "name": "xbug",
-  "pseudonym": "Angry-Lambkin",
+  "asset": "72953349079541984491540256989058459191837088602694504711397682031460063549664",
+  "conditionId": "0x0662ad7fde0f95c4fd5db5248d54f2258ba7477cb9e837ba3c8ca1c7bce7917c",
+  "size": 7.533332,
+  "price": 0.14999989380529094,
+  "timestamp": 1773487183,
+  "title": "Ethereum Up or Down - March 14, 7:15AM-7:20AM ET",
+  "slug": "eth-updown-5m-1773486900",
+  "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/ETH+fullsize.jpg",
+  "eventSlug": "eth-updown-5m-1773486900",
+  "outcome": "Up",
+  "outcomeIndex": 0,
+  "name": "",
+  "pseudonym": "",
   "bio": "",
   "profileImage": "",
   "profileImageOptimized": "",
-  "transactionHash": "0xb62779eb153513d6849246c7ad506c4cbaea176d9575d9973b80c514496e0f39"
+  "transactionHash": "0xca5f697ec17d6bf91fb25f5715c8477e5d853c72d7fad6db7ebeadf5a70ac89a"
 }
 ```
 
 ### Trade field comparison
-- Fields that match: outcome, price, side, size, timestamp
-- Fields that need renaming / are missing in real payload: asset_id, id, market, taker_order_id, trader, transaction_hash
-- Fields missing from our type (unexpected in real payload): asset, bio, conditionId, eventSlug, icon, name, outcomeIndex, profileImage, profileImageOptimized, proxyWallet, pseudonym, slug, title, transactionHash
+- Fields that match: conditionId, outcome, price, side, size, timestamp, transactionHash
+- Fields that need renaming / are missing in real payload: assetId, asset_id, id, market, trader, transaction_hash
+- Fields missing from our type (unexpected in real payload): asset, bio, eventSlug, icon, name, outcomeIndex, profileImage, profileImageOptimized, proxyWallet, pseudonym, slug, title
 
 ### Required documentation checks
 - Is field "market" or "condition_id"? **conditionId**

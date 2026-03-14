@@ -14,16 +14,24 @@ import { config } from '../config.js';
 // --- Types ---
 
 export interface PolymarketMarket {
-  id: string;                    // condition_id
+  // API-SHAPE-REPORT: Gamma returns conditionId (camelCase) and endDateIso/endDate.
+  // We keep camelCase canonical fields and preserve legacy aliases for non-breaking callers.
+  id: string;
+  conditionId: string;
   question: string;
   slug: string;
   category: string;
-  end_date_iso: string;
+  endDateIso: string;
+  // Back-compat alias (legacy code still reads end_date_iso).
+  end_date_iso?: string;
   active: boolean;
   closed: boolean;
+  // API-SHAPE-REPORT: Gamma often returns clobTokenIds + outcomes/outcomePrices, not tokens[].
   tokens: Array<{
-    token_id: string;
-    outcome: string;             // "Yes" or "No"
+    tokenId: string;
+    // Back-compat alias (legacy code still reads token_id).
+    token_id?: string;
+    outcome: string;
     price: number;
   }>;
   volume: number;
@@ -32,18 +40,26 @@ export interface PolymarketMarket {
 }
 
 export interface PolymarketTrade {
+  // API-SHAPE-REPORT: Data trades expose conditionId + asset + proxyWallet + transactionHash.
+  // We keep camelCase canonical fields and legacy aliases for non-breaking downstream usage.
   id: string;
-  taker_order_id: string;
-  market: string;                // condition_id
-  asset_id: string;              // token_id
+  conditionId: string;
+  // Back-compat alias (legacy code still reads market).
+  market?: string;
+  assetId: string;
+  // Back-compat alias (legacy code still reads asset_id).
+  asset_id?: string;
   side: 'BUY' | 'SELL';
   size: string;
   price: string;
   timestamp: string;
-  // Data API fields
   outcome?: string;
   trader?: string;
+  transactionHash?: string;
+  // Back-compat alias (legacy code still reads transaction_hash).
   transaction_hash?: string;
+  title?: string;
+  slug?: string;
 }
 
 export interface OrderBookLevel {
@@ -104,11 +120,21 @@ export async function getMarkets(params: {
 }): Promise<PolymarketMarket[]> {
   const { limit = 50, offset = 0, active = true, closed = false, order = 'volume', ascending = false } = params;
   const url = `${config.polymarket.gammaUrl}/markets?limit=${limit}&offset=${offset}&active=${active}&closed=${closed}&order=${order}&ascending=${ascending}`;
-  const raw = await apiFetch<any[]>(url, `getMarkets(limit=${limit})`);
+  const raw = await apiFetch<any>(url, `getMarkets(limit=${limit})`);
   if (!raw) return [];
 
+  // API-SHAPE-REPORT: Gamma may return a raw array OR wrapper object ({ data: [...] } / { markets: [...] }).
+  // We normalize to an array first to avoid parser breakage.
+  const marketsArray: any[] = Array.isArray(raw)
+    ? raw
+    : Array.isArray(raw?.data)
+      ? raw.data
+      : Array.isArray(raw?.markets)
+        ? raw.markets
+        : [];
+
   // --- Parse into our typed format ---
-  return raw.map(m => {
+  return marketsArray.map(m => {
     const parsedClobTokenIds = (() => {
       const val = m.clobTokenIds ?? m.clobTokenIDs;
       if (Array.isArray(val)) return val;
@@ -152,29 +178,42 @@ export async function getMarkets(params: {
     })();
 
     const normalizedTokens = Array.isArray(m.tokens) && m.tokens.length > 0
-      ? m.tokens.map((t: any) => ({
-          token_id: String(t.token_id ?? t.tokenId ?? t.asset_id ?? t.asset ?? ''),
-          outcome: String(t.outcome ?? t.name ?? ''),
-          price: parseFloat(String(t.price ?? t.lastPrice ?? '0')) || 0,
-        }))
+      ? m.tokens.map((t: any) => {
+          const tokenId = String(t.token_id ?? t.tokenId ?? t.asset_id ?? t.asset ?? '');
+          return {
+            tokenId,
+            // API-SHAPE-REPORT compatibility: legacy code still reads token_id.
+            token_id: tokenId,
+            outcome: String(t.outcome ?? t.name ?? ''),
+            price: parseFloat(String(t.price ?? t.lastPrice ?? '0')) || 0,
+          };
+        })
       : parsedClobTokenIds.map((tokenId: string, i: number) => ({
+          tokenId: String(tokenId),
+          // API-SHAPE-REPORT compatibility: legacy code still reads token_id.
           token_id: String(tokenId),
           outcome: String(parsedOutcomes[i] ?? `Outcome ${i + 1}`),
           price: parseFloat(String(parsedOutcomePrices[i] ?? '0')) || 0,
         }));
 
+    const conditionId = String(m.conditionId ?? m.condition_id ?? m.id ?? '');
+    const endDateIso = String(m.endDateIso ?? m.end_date_iso ?? m.endDate ?? '');
+
     return {
-      id: m.condition_id || m.conditionId || m.id,
+      id: String(m.id ?? conditionId),
+      conditionId,
       question: m.question || m.title || '',
       slug: m.slug || '',
       category: m.category || 'unknown',
-      end_date_iso: m.end_date_iso || m.endDateIso || m.endDate || '',
+      endDateIso,
+      // API-SHAPE-REPORT compatibility: preserve legacy snake_case alias.
+      end_date_iso: endDateIso,
       active: m.active ?? true,
       closed: m.closed ?? false,
       tokens: normalizedTokens,
-      volume: parseFloat(m.volume) || 0,
-      liquidity: parseFloat(m.liquidity) || 0,
-      spread: parseFloat(m.spread) || 0,
+      volume: parseFloat(String(m.volume ?? m.volumeNum ?? '0')) || 0,
+      liquidity: parseFloat(String(m.liquidity ?? m.liquidityNum ?? '0')) || 0,
+      spread: parseFloat(String(m.spread ?? '0')) || 0,
     };
   });
 }
@@ -198,8 +237,14 @@ export async function searchMarkets(query: string): Promise<PolymarketMarket[]> 
  */
 export async function getMidpoint(tokenId: string): Promise<number | null> {
   const url = `${config.polymarket.clobUrl}/midpoint?token_id=${tokenId}`;
-  const data = await apiFetch<{ mid: string }>(url, `getMidpoint(${tokenId.slice(0, 8)}...)`);
-  return data ? parseFloat(data.mid) : null;
+  const data = await apiFetch<any>(url, `getMidpoint(${tokenId.slice(0, 8)}...)`);
+
+  // API-SHAPE-REPORT task: midpoint can vary by endpoint/version; parse common shapes defensively.
+  // Expected primary shape is { mid: string }, but we also accept numeric mid or wrapped variants.
+  if (!data) return null;
+  const candidate = data.mid ?? data.price ?? data?.data?.mid ?? data?.data?.price;
+  const parsed = parseFloat(String(candidate ?? 'NaN'));
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 /**
@@ -246,36 +291,55 @@ export async function getWalletTrades(params: {
   after?: string;          // ISO timestamp, only trades after this time
 }): Promise<PolymarketTrade[]> {
   const { walletAddress, limit = 50, after } = params;
-  let url = `${config.polymarket.dataUrl}/trades?maker_address=${walletAddress}&limit=${limit}`;
+
+  // API-SHAPE-REPORT: Data API wallet field is proxyWallet in payloads and supports `user` query filtering.
+  // We call `user` first (authoritative), then fallback to maker/taker for backward compatibility.
+  let userUrl = `${config.polymarket.dataUrl}/trades?user=${walletAddress}&limit=${limit}`;
   if (after) {
-    url += `&after=${encodeURIComponent(after)}`;
+    userUrl += `&after=${encodeURIComponent(after)}`;
   }
+  const userData = await apiFetch<any[]>(userUrl, `getWalletTrades-user(${walletAddress.slice(0, 8)}...)`);
 
-  const data = await apiFetch<PolymarketTrade[]>(url, `getWalletTrades(${walletAddress.slice(0, 8)}...)`);
+  let makerUrl = `${config.polymarket.dataUrl}/trades?maker_address=${walletAddress}&limit=${limit}`;
+  if (after) {
+    makerUrl += `&after=${encodeURIComponent(after)}`;
+  }
+  const makerData = await apiFetch<any[]>(makerUrl, `getWalletTrades-maker(${walletAddress.slice(0, 8)}...)`);
 
-  // --- Also check taker trades ---
   let takerUrl = `${config.polymarket.dataUrl}/trades?taker_address=${walletAddress}&limit=${limit}`;
   if (after) {
     takerUrl += `&after=${encodeURIComponent(after)}`;
   }
-  const takerData = await apiFetch<PolymarketTrade[]>(takerUrl, `getWalletTrades-taker(${walletAddress.slice(0, 8)}...)`);
+  const takerData = await apiFetch<any[]>(takerUrl, `getWalletTrades-taker(${walletAddress.slice(0, 8)}...)`);
 
   // --- Merge and deduplicate by trade ID ---
-  const allTradesRaw = [...(data || []), ...(takerData || [])];
+  const allTradesRaw = [...(userData || []), ...(makerData || []), ...(takerData || [])];
 
-  const allTrades: PolymarketTrade[] = allTradesRaw.map((t: any) => ({
-    id: String(t.id || t.transactionHash || `${t.conditionId || t.market}-${t.timestamp}-${t.size}`),
-    taker_order_id: String(t.taker_order_id || t.takerOrderId || ''),
-    market: String(t.market || t.condition_id || t.conditionId || ''),
-    asset_id: String(t.asset_id || t.token_id || t.asset || ''),
-    side: String(t.side || '').toUpperCase() === 'SELL' ? 'SELL' : 'BUY',
-    size: String(t.size ?? ''),
-    price: String(t.price ?? ''),
-    timestamp: String(t.timestamp ?? ''),
-    outcome: t.outcome,
-    trader: t.trader || t.proxyWallet || t.maker_address || t.makerAddress || t.taker_address || t.takerAddress,
-    transaction_hash: t.transaction_hash || t.transactionHash,
-  }));
+  const allTrades: PolymarketTrade[] = allTradesRaw.map((t: any) => {
+    const conditionId = String(t.conditionId ?? t.condition_id ?? t.market ?? '');
+    const assetId = String(t.asset ?? t.asset_id ?? t.token_id ?? '');
+    const transactionHash = String(t.transactionHash ?? t.transaction_hash ?? '');
+    return {
+      id: String(t.id || transactionHash || `${conditionId}-${t.timestamp}-${t.size}`),
+      conditionId,
+      // API-SHAPE-REPORT compatibility: legacy code still reads market.
+      market: conditionId,
+      assetId,
+      // API-SHAPE-REPORT compatibility: legacy code still reads asset_id.
+      asset_id: assetId,
+      side: String(t.side || '').toUpperCase() === 'SELL' ? 'SELL' : 'BUY',
+      size: String(t.size ?? ''),
+      price: String(t.price ?? ''),
+      timestamp: String(t.timestamp ?? ''),
+      outcome: t.outcome,
+      trader: t.trader || t.proxyWallet || t.maker_address || t.makerAddress || t.taker_address || t.takerAddress,
+      transactionHash,
+      // API-SHAPE-REPORT compatibility: legacy code still reads transaction_hash.
+      transaction_hash: transactionHash,
+      title: t.title,
+      slug: t.slug,
+    };
+  });
 
   const seen = new Set<string>();
   const unique: PolymarketTrade[] = [];
@@ -300,22 +364,37 @@ export async function getMarketByCondition(conditionId: string): Promise<Polymar
   const raw = await apiFetch<any>(url, `getMarketByCondition(${conditionId.slice(0, 8)}...)`);
   if (!raw) return null;
 
+  const conditionIdNorm = String(raw.conditionId ?? raw.condition_id ?? raw.id ?? '');
+  const endDateIsoNorm = String(raw.endDateIso ?? raw.end_date_iso ?? raw.endDate ?? '');
+
+  // API-SHAPE-REPORT: market-by-id may also omit tokens[] and only provide clobTokenIds/outcomes.
+  const tokens = Array.isArray(raw.tokens) && raw.tokens.length > 0
+    ? raw.tokens.map((t: any) => {
+        const tokenId = String(t.token_id ?? t.tokenId ?? t.asset_id ?? t.asset ?? '');
+        return {
+          tokenId,
+          token_id: tokenId,
+          outcome: String(t.outcome ?? t.name ?? ''),
+          price: parseFloat(String(t.price ?? t.lastPrice ?? '0')) || 0,
+        };
+      })
+    : [];
+
   return {
-    id: raw.condition_id || raw.conditionId || raw.id,
+    id: String(raw.id ?? conditionIdNorm),
+    conditionId: conditionIdNorm,
     question: raw.question || raw.title || '',
     slug: raw.slug || '',
     category: raw.category || 'unknown',
-    end_date_iso: raw.end_date_iso || raw.endDateIso || raw.endDate || '',
+    endDateIso: endDateIsoNorm,
+    // API-SHAPE-REPORT compatibility: preserve legacy snake_case alias.
+    end_date_iso: endDateIsoNorm,
     active: raw.active ?? true,
     closed: raw.closed ?? false,
-    tokens: (raw.tokens || []).map((t: any) => ({
-      token_id: String(t.token_id ?? t.tokenId ?? t.asset_id ?? t.asset ?? ''),
-      outcome: String(t.outcome ?? t.name ?? ''),
-      price: parseFloat(String(t.price ?? t.lastPrice ?? '0')) || 0,
-    })),
-    volume: parseFloat(raw.volume) || 0,
-    liquidity: parseFloat(raw.liquidity) || 0,
-    spread: parseFloat(raw.spread) || 0,
+    tokens,
+    volume: parseFloat(String(raw.volume ?? raw.volumeNum ?? '0')) || 0,
+    liquidity: parseFloat(String(raw.liquidity ?? raw.liquidityNum ?? '0')) || 0,
+    spread: parseFloat(String(raw.spread ?? '0')) || 0,
   };
 }
 
