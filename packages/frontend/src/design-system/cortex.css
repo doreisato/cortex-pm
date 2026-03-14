@@ -1,0 +1,620 @@
+/* ============================================================
+   CORTEX-PM Design System
+   Extracted from Neural Cortex + Polymarket reference dashboards.
+   
+   DESIGN LANGUAGE:
+   - Pure black void background
+   - Monospace typography (JetBrains Mono)
+   - ALL CAPS headers with wide letter-spacing
+   - Diamond (◆) section markers
+   - Hairline borders, no shadows, no rounded corners
+   - Green matrix accent for positive values
+   - Red signal for negative/danger
+   - Amber for warnings/neutral
+   - Three-column grid layout
+   - Bottom status ticker bar
+   ============================================================ */
+
+/* --- Reset --- */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* --- Backgrounds --- */
+  --bg-void: #000000;
+  --bg-surface: #050505;
+  --bg-panel: #0a0a0a;
+  --bg-card: #0d0d0d;
+  --bg-hover: #111111;
+  --bg-active: #1a1a1a;
+
+  /* --- Borders --- */
+  --border-dim: #111111;
+  --border-default: #1a1a1a;
+  --border-bright: #2a2a2a;
+  --border-accent: #333333;
+
+  /* --- Text --- */
+  --text-primary: #e0e0e0;
+  --text-secondary: #888888;
+  --text-dim: #555555;
+  --text-muted: #333333;
+
+  /* --- Accent colors --- */
+  --green: #00ff41;
+  --green-dim: #00cc33;
+  --green-bg: rgba(0, 255, 65, 0.06);
+  --red: #ff3344;
+  --red-dim: #cc2233;
+  --red-bg: rgba(255, 51, 68, 0.06);
+  --amber: #ffaa00;
+  --amber-dim: #cc8800;
+  --amber-bg: rgba(255, 170, 0, 0.06);
+  --blue: #4488ff;
+  --blue-dim: #3366cc;
+  --cyan: #00cccc;
+  --purple: #8844ff;
+
+  /* --- Typography --- */
+  --font-mono: 'JetBrains Mono', 'Space Mono', 'Fira Code', monospace;
+  --fs-xs: 10px;
+  --fs-sm: 11px;
+  --fs-md: 12px;
+  --fs-lg: 14px;
+  --fs-xl: 16px;
+  --fs-2xl: 20px;
+  --fs-3xl: 28px;
+  --fs-4xl: 36px;
+  --ls-wide: 0.15em;
+  --ls-normal: 0.05em;
+
+  /* --- Spacing --- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+
+  /* --- Layout --- */
+  --header-height: 40px;
+  --nav-height: 32px;
+  --status-height: 28px;
+  --panel-gap: 1px;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-mono);
+  font-size: var(--fs-md);
+  color: var(--text-primary);
+  background: var(--bg-void);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+
+#root {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================================
+   HEADER BAR — top branding + nav + status
+   ============================================================ */
+.header {
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--sp-4);
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+
+.header__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.header__diamond {
+  color: var(--green);
+  font-size: var(--fs-lg);
+}
+
+.header__title {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.header__version {
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  letter-spacing: var(--ls-normal);
+}
+
+.header__nav {
+  display: flex;
+  gap: 0;
+}
+
+.header__nav-item {
+  padding: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: none;
+  transition: color 0.15s, border-color 0.15s;
+  font-family: var(--font-mono);
+}
+
+.header__nav-item:hover {
+  color: var(--text-primary);
+}
+
+.header__nav-item--active {
+  color: var(--text-primary);
+  border: 1px solid var(--border-bright);
+  background: var(--bg-panel);
+}
+
+.header__status {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+}
+
+.header__status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ============================================================
+   PARAMS BAR — scrolling parameter display below header
+   ============================================================ */
+.params-bar {
+  height: var(--nav-height);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: 0 var(--sp-4);
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border-dim);
+  background: var(--bg-void);
+  overflow-x: auto;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.params-bar__item {
+  display: flex;
+  gap: var(--sp-1);
+}
+
+.params-bar__label {
+  color: var(--text-muted);
+}
+
+.params-bar__value {
+  color: var(--text-secondary);
+}
+
+.params-bar__value--highlight {
+  color: var(--green);
+}
+
+/* ============================================================
+   MAIN GRID — three-column dashboard layout
+   ============================================================ */
+.main-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 340px 1fr 320px;
+  gap: var(--panel-gap);
+  overflow: hidden;
+  background: var(--border-dim);
+}
+
+/* ============================================================
+   PANEL — base container for all dashboard sections
+   ============================================================ */
+.panel {
+  background: var(--bg-void);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.panel::-webkit-scrollbar {
+  width: 3px;
+}
+
+.panel::-webkit-scrollbar-track {
+  background: var(--bg-void);
+}
+
+.panel::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+}
+
+/* ============================================================
+   SECTION — titled content block within a panel
+   ============================================================ */
+.section {
+  padding: var(--sp-4);
+  border-bottom: 1px solid var(--border-dim);
+}
+
+.section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-3);
+}
+
+.section__title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.section__title::before {
+  content: '◆ ';
+  color: var(--text-dim);
+}
+
+.section__badge {
+  font-size: var(--fs-xs);
+  padding: 1px 6px;
+  color: var(--text-dim);
+  border: 1px solid var(--border-default);
+}
+
+/* ============================================================
+   METRIC CARD — big number with label
+   ============================================================ */
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metric__value {
+  font-size: var(--fs-3xl);
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--text-primary);
+}
+
+.metric__value--green { color: var(--green); }
+.metric__value--red { color: var(--red); }
+.metric__value--amber { color: var(--amber); }
+
+.metric__label {
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-wide);
+}
+
+.metric__sublabel {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* --- Metric grid for side-by-side stats --- */
+.metric-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid var(--border-default);
+}
+
+.metric-grid__cell {
+  padding: var(--sp-3);
+  border-right: 1px solid var(--border-dim);
+  border-bottom: 1px solid var(--border-dim);
+}
+
+.metric-grid__cell:nth-child(2n) {
+  border-right: none;
+}
+
+.metric-grid__label {
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-wide);
+  margin-bottom: 2px;
+}
+
+.metric-grid__value {
+  font-size: var(--fs-2xl);
+  font-weight: 400;
+  color: var(--text-primary);
+}
+
+/* ============================================================
+   KV ROW — key-value pair (label: value)
+   ============================================================ */
+.kv-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--sp-1) 0;
+  font-size: var(--fs-sm);
+}
+
+.kv-row__key {
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-normal);
+}
+
+.kv-row__value {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* ============================================================
+   POSITIONS TABLE — right panel market list
+   ============================================================ */
+.position-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--border-dim);
+  font-size: var(--fs-sm);
+}
+
+.position-row:hover {
+  background: var(--bg-hover);
+}
+
+.position-row__name {
+  color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: var(--sp-2);
+}
+
+.position-row__ticker {
+  color: var(--text-secondary);
+  width: 40px;
+  text-align: right;
+  margin-right: var(--sp-3);
+}
+
+.position-row__pnl {
+  width: 60px;
+  text-align: right;
+  font-weight: 500;
+}
+
+.position-row__pnl--positive { color: var(--green); }
+.position-row__pnl--negative { color: var(--red); }
+
+/* ============================================================
+   LIVE EVENTS — scrolling event list
+   ============================================================ */
+.live-event {
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--border-dim);
+}
+
+.live-event__title {
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.live-event__meta {
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+}
+
+/* ============================================================
+   SCANNER FEED — global trade activity log
+   ============================================================ */
+.scanner-entry {
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--border-dim);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+}
+
+.scanner-entry__time {
+  color: var(--text-muted);
+  margin-right: var(--sp-2);
+}
+
+.scanner-entry__action {
+  font-weight: 600;
+}
+
+.scanner-entry__action--buy { color: var(--green); }
+.scanner-entry__action--sell { color: var(--red); }
+.scanner-entry__action--settled { color: var(--amber); }
+
+.scanner-entry__market {
+  color: var(--text-secondary);
+}
+
+.scanner-entry__amount {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* ============================================================
+   CHART CONTAINER
+   ============================================================ */
+.chart-container {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  padding: var(--sp-2) 0;
+}
+
+.chart-container--tall {
+  height: 300px;
+}
+
+/* ============================================================
+   STATUS BAR — bottom ticker
+   ============================================================ */
+.status-bar {
+  height: var(--status-height);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  padding: 0 var(--sp-4);
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  border-top: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.status-bar__item {
+  display: flex;
+  gap: var(--sp-1);
+}
+
+.status-bar__label {
+  color: var(--text-muted);
+}
+
+.status-bar__value {
+  color: var(--text-secondary);
+}
+
+.status-bar__value--green { color: var(--green); }
+.status-bar__value--red { color: var(--red); }
+
+/* ============================================================
+   CONVERGENCE SIGNAL CARD — highlighted alert in center panel
+   ============================================================ */
+.signal-card {
+  padding: var(--sp-3);
+  border: 1px solid var(--border-default);
+  margin-bottom: var(--sp-2);
+  background: var(--bg-card);
+  transition: border-color 0.2s;
+}
+
+.signal-card:hover {
+  border-color: var(--border-bright);
+}
+
+.signal-card--high {
+  border-left: 2px solid var(--green);
+}
+
+.signal-card--medium {
+  border-left: 2px solid var(--amber);
+}
+
+.signal-card--low {
+  border-left: 2px solid var(--text-dim);
+}
+
+.signal-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--sp-2);
+}
+
+.signal-card__score {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+}
+
+.signal-card__outcome {
+  font-size: var(--fs-sm);
+  padding: 1px 6px;
+  border: 1px solid var(--border-default);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-normal);
+}
+
+.signal-card__question {
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+  margin-bottom: var(--sp-1);
+}
+
+.signal-card__meta {
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  display: flex;
+  gap: var(--sp-4);
+}
+
+/* ============================================================
+   CANVAS TOPOLOGY — neural network visualization
+   ============================================================ */
+.topology-container {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  background: var(--bg-void);
+  overflow: hidden;
+}
+
+.topology-container canvas {
+  width: 100%;
+  height: 100%;
+}
+
+/* ============================================================
+   UTILITY CLASSES
+   ============================================================ */
+.text-green { color: var(--green) !important; }
+.text-red { color: var(--red) !important; }
+.text-amber { color: var(--amber) !important; }
+.text-dim { color: var(--text-dim) !important; }
+.text-muted { color: var(--text-muted) !important; }
+.text-secondary { color: var(--text-secondary) !important; }
+.text-right { text-align: right !important; }
+.text-uppercase { text-transform: uppercase !important; }
+.font-bold { font-weight: 600 !important; }
+.mt-2 { margin-top: var(--sp-2) !important; }
+.mt-4 { margin-top: var(--sp-4) !important; }
+.mb-2 { margin-bottom: var(--sp-2) !important; }
+.gap-2 { gap: var(--sp-2) !important; }
