@@ -117,7 +117,7 @@ export function NeuralTopology({ walletCount = 20 }: { walletCount?: number }) {
         if (node.connections > 4) {
           ctx.beginPath();
           ctx.arc(node.x, node.y, r * 4, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(0, 255, 65, ${alpha * 0.08})`;
+          ctx.fillStyle = `rgba(122, 162, 255, ${alpha * 0.10})`;
           ctx.fill();
         }
 
@@ -125,7 +125,7 @@ export function NeuralTopology({ walletCount = 20 }: { walletCount?: number }) {
         ctx.beginPath();
         ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
         ctx.fillStyle = node.connections > 4
-          ? `rgba(0, 255, 65, ${alpha})`
+          ? `rgba(122, 162, 255, ${alpha})`
           : `rgba(255, 255, 255, ${alpha})`;
         ctx.fill();
       }
