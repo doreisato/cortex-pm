@@ -8,7 +8,7 @@
 // ============================================================
 
 import { useState, useEffect, useCallback } from 'react';
-import { api, type DashboardData, type ConvergenceEvent, type WalletTrade, type PaperTrade } from './lib/api';
+import { api, type DashboardData, type ConvergenceEvent, type WalletTrade, type PaperTrade, type TrackedWallet } from './lib/api';
 import { fmtUsd, fmtPct, fmtPrice, fmtNum, fmtTime, timeAgo, truncate, pnlClass } from './lib/format';
 import { useWebSocket, type WSMessage } from './hooks/useWebSocket';
 import { EquityCurve } from './components/EquityCurve';
@@ -23,6 +23,20 @@ export default function App() {
   const [trades, setTrades] = useState<WalletTrade[]>([]);
   const [convergence, setConvergence] = useState<ConvergenceEvent[]>([]);
   const [now, setNow] = useState(new Date());
+  const [wallets, setWallets] = useState<TrackedWallet[]>([]);
+  const [walletAddress, setWalletAddress] = useState('');
+  const [walletLabel, setWalletLabel] = useState('');
+  const [walletTier, setWalletTier] = useState('B');
+  const [savingWallet, setSavingWallet] = useState(false);
+  const [cfg, setCfg] = useState({
+    window_minutes: 10,
+    min_wallets: 3,
+    min_score: 60,
+    default_size_usd: 100,
+    stop_loss_pct: 15,
+    take_profit_pct: 30,
+  });
+  const [savingCfg, setSavingCfg] = useState(false);
 
   // --- WebSocket for real-time updates ---
   const handleWS = useCallback((msg: WSMessage) => {
@@ -57,11 +71,64 @@ export default function App() {
     if (data) setConvergence(data);
   }
 
+  async function loadWallets() {
+    const data = await api.wallets();
+    if (data) setWallets(data);
+  }
+
+  async function loadConfig() {
+    const data = await api.config();
+    if (!data) return;
+    setCfg(prev => ({
+      ...prev,
+      window_minutes: data.convergence?.window_minutes ?? prev.window_minutes,
+      min_wallets: data.convergence?.min_wallets ?? prev.min_wallets,
+      min_score: data.convergence?.min_score ?? prev.min_score,
+      default_size_usd: data.paper_trading?.default_size_usd ?? prev.default_size_usd,
+      stop_loss_pct: data.paper_trading?.stop_loss_pct ?? prev.stop_loss_pct,
+      take_profit_pct: data.paper_trading?.take_profit_pct ?? prev.take_profit_pct,
+    }));
+  }
+
+  async function handleAddWallet(e: any) {
+    e.preventDefault();
+    if (!walletAddress.trim()) return;
+    setSavingWallet(true);
+    const res = await api.addWallet(walletAddress.trim(), walletLabel.trim() || 'unnamed', walletTier);
+    setSavingWallet(false);
+    if (!res?.success) return;
+    setWalletAddress('');
+    setWalletLabel('');
+    setWalletTier('B');
+    await Promise.all([loadWallets(), loadDashboard()]);
+  }
+
+  async function handleSaveConfig() {
+    setSavingCfg(true);
+    await Promise.all([
+      api.updateConfig('convergence', {
+        window_minutes: cfg.window_minutes,
+        min_wallets: cfg.min_wallets,
+        min_score: cfg.min_score,
+      }),
+      api.updateConfig('paper_trading', {
+        enabled: true,
+        default_size_usd: cfg.default_size_usd,
+        stop_loss_pct: cfg.stop_loss_pct,
+        take_profit_pct: cfg.take_profit_pct,
+      }),
+    ]);
+    setSavingCfg(false);
+    await loadDashboard();
+  }
+
   // --- Initial load + periodic refresh ---
   useEffect(() => {
     loadDashboard();
     loadTrades();
     loadConvergence();
+    loadWallets();
+    loadConfig();
 
     const refresh = setInterval(() => {
       loadDashboard();
@@ -82,6 +149,13 @@ export default function App() {
   const positions = dashboard?.openPositions || [];
   const equity = dashboard?.equityCurve || [];
   const totalPnl = (paper?.total_realized_pnl || 0) + (paper?.total_unrealized_pnl || 0);
+
+  const tabMeta: Record<Tab, { title: string; desc: string }> = {
+    dashboard: { title: 'Dashboard', desc: 'Live telemetry and portfolio state.' },
+    strategies: { title: 'Strategies', desc: 'Tune convergence thresholds and risk controls.' },
+    prediction: { title: 'Prediction', desc: 'Monitor signal quality and directional bias.' },
+    plasticity: { title: 'Plasticity', desc: 'Adaptive response mode and learning loops.' },
+  };
 
   // ============================================================
   // RENDER
@@ -130,7 +204,7 @@ export default function App() {
       </div>
 
       {/* --- MAIN GRID --- */}
-      <div className="main-grid">
+      {tab === 'dashboard' && <div className="main-grid">
         {/* ======== LEFT PANEL ======== */}
         <div className="panel">
           {/* Balance */}
@@ -361,7 +435,75 @@ export default function App() {
             </div>
           </div>
         </div>
-      </div>
+      </div>}
+
+      {tab !== 'dashboard' && (
+        <div className="main-grid" style={{ gridTemplateColumns: '1fr' }}>
+          <div className="panel">
+            <div className="section">
+              <div className="section__header">
+                <span className="section__title">{tabMeta[tab].title} Control Center</span>
+              </div>
+              <div style={{ color: '#666', fontSize: 12, marginBottom: 12 }}>{tabMeta[tab].desc}</div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12, marginBottom: 16 }}>
+                <label className="kv-row">Window (min)
+                  <input type="number" value={cfg.window_minutes} onChange={(e) => setCfg({ ...cfg, window_minutes: Number(e.target.value) })} />
+                </label>
+                <label className="kv-row">Min wallets
+                  <input type="number" value={cfg.min_wallets} onChange={(e) => setCfg({ ...cfg, min_wallets: Number(e.target.value) })} />
+                </label>
+                <label className="kv-row">Min score
+                  <input type="number" value={cfg.min_score} onChange={(e) => setCfg({ ...cfg, min_score: Number(e.target.value) })} />
+                </label>
+                <label className="kv-row">Size USD
+                  <input type="number" value={cfg.default_size_usd} onChange={(e) => setCfg({ ...cfg, default_size_usd: Number(e.target.value) })} />
+                </label>
+                <label className="kv-row">SL %
+                  <input type="number" value={cfg.stop_loss_pct} onChange={(e) => setCfg({ ...cfg, stop_loss_pct: Number(e.target.value) })} />
+                </label>
+                <label className="kv-row">TP %
+                  <input type="number" value={cfg.take_profit_pct} onChange={(e) => setCfg({ ...cfg, take_profit_pct: Number(e.target.value) })} />
+                </label>
+              </div>
+
+              <button className="header__nav-item header__nav-item--active" onClick={handleSaveConfig} disabled={savingCfg}>
+                {savingCfg ? 'Saving...' : 'Save Strategy Settings'}
+              </button>
+            </div>
+
+            <div className="section">
+              <div className="section__header">
+                <span className="section__title">Wallet Manager</span>
+                <span className="section__badge">{wallets.length} tracked</span>
+              </div>
+
+              <form onSubmit={handleAddWallet} style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
+                <input placeholder="Proxy wallet address (0x...)" value={walletAddress} onChange={(e) => setWalletAddress(e.target.value)} />
+                <input placeholder="Label (optional)" value={walletLabel} onChange={(e) => setWalletLabel(e.target.value)} />
+                <select value={walletTier} onChange={(e) => setWalletTier(e.target.value)}>
+                  <option value="A">Tier A</option>
+                  <option value="B">Tier B</option>
+                  <option value="C">Tier C</option>
+                </select>
+                <button className="header__nav-item header__nav-item--active" type="submit" disabled={savingWallet}>
+                  {savingWallet ? 'Adding...' : 'Add Wallet'}
+                </button>
+              </form>
+
+              <div style={{ maxHeight: 260, overflowY: 'auto' }}>
+                {wallets.map(w => (
+                  <div className="position-row" key={w.id}>
+                    <span className="position-row__name">{w.label || w.address.slice(0, 12)}</span>
+                    <span className="position-row__ticker">{w.tier}</span>
+                    <span className="position-row__pnl">{w.address.slice(0, 10)}...</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* --- STATUS BAR --- */}
       <div className="status-bar">

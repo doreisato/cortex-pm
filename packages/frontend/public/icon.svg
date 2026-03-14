@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#000"/>
+  <text x="50%" y="52%" dominant-baseline="middle" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="96" fill="#00ff41">◆</text>
+  <text x="50%" y="72%" dominant-baseline="middle" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="42" fill="#e0e0e0">CORTEX</text>
+</svg>

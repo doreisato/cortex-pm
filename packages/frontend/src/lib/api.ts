@@ -20,6 +20,42 @@ async function get<T>(path: string): Promise<T | null> {
   }
 }
 
+async function post<T>(path: string, body: unknown): Promise<T | null> {
+  try {
+    const res = await fetch(`${API}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      console.error(`[API] POST ${path} failed: ${res.status}`);
+      return null;
+    }
+    return await res.json();
+  } catch (err) {
+    console.error(`[API] POST ${path} error:`, (err as Error).message);
+    return null;
+  }
+}
+
+async function put<T>(path: string, body: unknown): Promise<T | null> {
+  try {
+    const res = await fetch(`${API}${path}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      console.error(`[API] PUT ${path} failed: ${res.status}`);
+      return null;
+    }
+    return await res.json();
+  } catch (err) {
+    console.error(`[API] PUT ${path} error:`, (err as Error).message);
+    return null;
+  }
+}
+
 // --- Types ---
 
 export interface DashboardData {
@@ -130,4 +166,7 @@ export const api = {
   positions: () => get<{ stats: any; openPositions: PaperTrade[]; recentClosed: PaperTrade[] }>('/api/positions'),
   trades: (limit = 50) => get<WalletTrade[]>(`/api/trades?limit=${limit}`),
   wallets: () => get<TrackedWallet[]>('/api/wallets'),
+  config: () => get<Record<string, any>>('/api/config'),
+  addWallet: (address: string, label: string, tier: string) => post<{ success: boolean }>('/api/wallets', { address, label, tier }),
+  updateConfig: (key: string, value: any) => put<{ success: boolean }>(`/api/config/${key}`, { value }),
 };

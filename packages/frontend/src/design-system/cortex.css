@@ -101,6 +101,19 @@ body {
   line-height: 1.5;
 }
 
+input, select, button {
+  font-family: var(--font-mono);
+}
+
+input, select {
+  width: 100%;
+  background: #050505;
+  border: 1px solid #1f1f1f;
+  color: var(--text-primary);
+  padding: 8px;
+  font-size: 12px;
+}
+
 #root {
   height: 100vh;
   display: flex;
@@ -618,3 +631,52 @@ body {
 .mt-4 { margin-top: var(--sp-4) !important; }
 .mb-2 { margin-bottom: var(--sp-2) !important; }
 .gap-2 { gap: var(--sp-2) !important; }
+
+/* ============================================================
+   RESPONSIVE UPGRADE
+   ============================================================ */
+@media (max-width: 1200px) {
+  .main-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .main-grid .panel:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 800px) {
+  html, body {
+    overflow: auto;
+  }
+
+  #root {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .header {
+    height: auto;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .header__nav {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .main-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .status-bar {
+    position: sticky;
+    bottom: 0;
+    flex-wrap: wrap;
+    height: auto;
+    padding: 8px 12px;
+  }
+}
