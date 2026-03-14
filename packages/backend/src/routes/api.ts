@@ -146,10 +146,14 @@ router.get('/wallets', async (_req, res) => {
 });
 
 router.post('/wallets', async (req, res) => {
-  const { address, label, tier } = req.body;
-  if (!address) return res.status(400).json({ error: 'address required' });
-  await addWallet(address, label || 'unnamed', tier || 'B');
-  res.json({ success: true });
+  try {
+    const { address, label, tier } = req.body;
+    if (!address) return res.status(400).json({ error: 'address required' });
+    await addWallet(address, label || 'unnamed', tier || 'B');
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
 });
 
 

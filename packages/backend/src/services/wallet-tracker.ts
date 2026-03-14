@@ -325,9 +325,10 @@ export async function addWallet(address: string, label: string, tier = 'B'): Pro
 
   if (error) {
     console.error('[WALLET-TRACKER] Add wallet error:', error.message);
-  } else {
-    console.log(`[WALLET-TRACKER] Added wallet: ${label} (${address.slice(0, 8)}...)`);
+    throw new Error(error.message);
   }
+
+  console.log(`[WALLET-TRACKER] Added wallet: ${label} (${address.slice(0, 8)}...)`);
 }
 
 export async function getActiveWallets(): Promise<TrackedWallet[]> {
