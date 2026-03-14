@@ -108,23 +108,75 @@ export async function getMarkets(params: {
   if (!raw) return [];
 
   // --- Parse into our typed format ---
-  return raw.map(m => ({
-    id: m.condition_id || m.id,
-    question: m.question || '',
-    slug: m.slug || '',
-    category: m.category || 'unknown',
-    end_date_iso: m.end_date_iso || '',
-    active: m.active ?? true,
-    closed: m.closed ?? false,
-    tokens: (m.tokens || []).map((t: any) => ({
-      token_id: t.token_id,
-      outcome: t.outcome,
-      price: parseFloat(t.price) || 0,
-    })),
-    volume: parseFloat(m.volume) || 0,
-    liquidity: parseFloat(m.liquidity) || 0,
-    spread: parseFloat(m.spread) || 0,
-  }));
+  return raw.map(m => {
+    const parsedClobTokenIds = (() => {
+      const val = m.clobTokenIds ?? m.clobTokenIDs;
+      if (Array.isArray(val)) return val;
+      if (typeof val === 'string') {
+        try {
+          const parsed = JSON.parse(val);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+      return [];
+    })();
+
+    const parsedOutcomes = (() => {
+      const val = m.outcomes;
+      if (Array.isArray(val)) return val;
+      if (typeof val === 'string') {
+        try {
+          const parsed = JSON.parse(val);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+      return [];
+    })();
+
+    const parsedOutcomePrices = (() => {
+      const val = m.outcomePrices;
+      if (Array.isArray(val)) return val;
+      if (typeof val === 'string') {
+        try {
+          const parsed = JSON.parse(val);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+      return [];
+    })();
+
+    const normalizedTokens = Array.isArray(m.tokens) && m.tokens.length > 0
+      ? m.tokens.map((t: any) => ({
+          token_id: String(t.token_id ?? t.tokenId ?? t.asset_id ?? t.asset ?? ''),
+          outcome: String(t.outcome ?? t.name ?? ''),
+          price: parseFloat(String(t.price ?? t.lastPrice ?? '0')) || 0,
+        }))
+      : parsedClobTokenIds.map((tokenId: string, i: number) => ({
+          token_id: String(tokenId),
+          outcome: String(parsedOutcomes[i] ?? `Outcome ${i + 1}`),
+          price: parseFloat(String(parsedOutcomePrices[i] ?? '0')) || 0,
+        }));
+
+    return {
+      id: m.condition_id || m.conditionId || m.id,
+      question: m.question || m.title || '',
+      slug: m.slug || '',
+      category: m.category || 'unknown',
+      end_date_iso: m.end_date_iso || m.endDateIso || m.endDate || '',
+      active: m.active ?? true,
+      closed: m.closed ?? false,
+      tokens: normalizedTokens,
+      volume: parseFloat(m.volume) || 0,
+      liquidity: parseFloat(m.liquidity) || 0,
+      spread: parseFloat(m.spread) || 0,
+    };
+  });
 }
 
 /**
@@ -209,7 +261,22 @@ export async function getWalletTrades(params: {
   const takerData = await apiFetch<PolymarketTrade[]>(takerUrl, `getWalletTrades-taker(${walletAddress.slice(0, 8)}...)`);
 
   // --- Merge and deduplicate by trade ID ---
-  const allTrades = [...(data || []), ...(takerData || [])];
+  const allTradesRaw = [...(data || []), ...(takerData || [])];
+
+  const allTrades: PolymarketTrade[] = allTradesRaw.map((t: any) => ({
+    id: String(t.id || t.transactionHash || `${t.conditionId || t.market}-${t.timestamp}-${t.size}`),
+    taker_order_id: String(t.taker_order_id || t.takerOrderId || ''),
+    market: String(t.market || t.condition_id || t.conditionId || ''),
+    asset_id: String(t.asset_id || t.token_id || t.asset || ''),
+    side: String(t.side || '').toUpperCase() === 'SELL' ? 'SELL' : 'BUY',
+    size: String(t.size ?? ''),
+    price: String(t.price ?? ''),
+    timestamp: String(t.timestamp ?? ''),
+    outcome: t.outcome,
+    trader: t.trader || t.proxyWallet || t.maker_address || t.makerAddress || t.taker_address || t.takerAddress,
+    transaction_hash: t.transaction_hash || t.transactionHash,
+  }));
+
   const seen = new Set<string>();
   const unique: PolymarketTrade[] = [];
   for (const trade of allTrades) {
@@ -234,17 +301,17 @@ export async function getMarketByCondition(conditionId: string): Promise<Polymar
   if (!raw) return null;
 
   return {
-    id: raw.condition_id || raw.id,
-    question: raw.question || '',
+    id: raw.condition_id || raw.conditionId || raw.id,
+    question: raw.question || raw.title || '',
     slug: raw.slug || '',
     category: raw.category || 'unknown',
-    end_date_iso: raw.end_date_iso || '',
+    end_date_iso: raw.end_date_iso || raw.endDateIso || raw.endDate || '',
     active: raw.active ?? true,
     closed: raw.closed ?? false,
     tokens: (raw.tokens || []).map((t: any) => ({
-      token_id: t.token_id,
-      outcome: t.outcome,
-      price: parseFloat(t.price) || 0,
+      token_id: String(t.token_id ?? t.tokenId ?? t.asset_id ?? t.asset ?? ''),
+      outcome: String(t.outcome ?? t.name ?? ''),
+      price: parseFloat(String(t.price ?? t.lastPrice ?? '0')) || 0,
     })),
     volume: parseFloat(raw.volume) || 0,
     liquidity: parseFloat(raw.liquidity) || 0,

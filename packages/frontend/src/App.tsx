@@ -183,7 +183,7 @@ export default function App() {
         </nav>
 
         <div className="header__status">
-          <div className={`header__status-dot`} style={{ background: connected ? '#00ff41' : '#ff3344' }} />
+          <div className={`header__status-dot`} style={{ background: connected ? '#7aa2ff' : '#8a93a6' }} />
           <span>ACTIVE</span>
           <span>{now.toLocaleTimeString('en-US', { hour12: false })}</span>
         </div>
@@ -241,7 +241,7 @@ export default function App() {
               </div>
               <div className="metric-grid__cell">
                 <div className="metric-grid__label">Wins</div>
-                <div className="metric-grid__value" style={{ color: '#00ff41' }}>{conv?.wins || 0}</div>
+                <div className="metric-grid__value" style={{ color: '#7aa2ff' }}>{conv?.wins || 0}</div>
               </div>
               <div className="metric-grid__cell">
                 <div className="metric-grid__label">Losses</div>
@@ -444,35 +444,69 @@ export default function App() {
               <div className="section__header">
                 <span className="section__title">{tabMeta[tab].title} Control Center</span>
               </div>
-              <div style={{ color: '#666', fontSize: 12, marginBottom: 12 }}>{tabMeta[tab].desc}</div>
+              <div style={{ color: '#888', fontSize: 12, marginBottom: 12 }}>{tabMeta[tab].desc}</div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12, marginBottom: 16 }}>
-                <label className="kv-row">Window (min)
-                  <input type="number" value={cfg.window_minutes} onChange={(e) => setCfg({ ...cfg, window_minutes: Number(e.target.value) })} />
-                </label>
-                <label className="kv-row">Min wallets
-                  <input type="number" value={cfg.min_wallets} onChange={(e) => setCfg({ ...cfg, min_wallets: Number(e.target.value) })} />
-                </label>
-                <label className="kv-row">Min score
-                  <input type="number" value={cfg.min_score} onChange={(e) => setCfg({ ...cfg, min_score: Number(e.target.value) })} />
-                </label>
-                <label className="kv-row">Size USD
-                  <input type="number" value={cfg.default_size_usd} onChange={(e) => setCfg({ ...cfg, default_size_usd: Number(e.target.value) })} />
-                </label>
-                <label className="kv-row">SL %
-                  <input type="number" value={cfg.stop_loss_pct} onChange={(e) => setCfg({ ...cfg, stop_loss_pct: Number(e.target.value) })} />
-                </label>
-                <label className="kv-row">TP %
-                  <input type="number" value={cfg.take_profit_pct} onChange={(e) => setCfg({ ...cfg, take_profit_pct: Number(e.target.value) })} />
-                </label>
-              </div>
+              {tab === 'strategies' && (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12, marginBottom: 16 }}>
+                    <label className="kv-row">Window (min)
+                      <input inputMode="numeric" value={cfg.window_minutes} onChange={(e) => setCfg({ ...cfg, window_minutes: Number(e.target.value) || 0 })} />
+                    </label>
+                    <label className="kv-row">Min wallets
+                      <input inputMode="numeric" value={cfg.min_wallets} onChange={(e) => setCfg({ ...cfg, min_wallets: Number(e.target.value) || 0 })} />
+                    </label>
+                    <label className="kv-row">Min score
+                      <input inputMode="numeric" value={cfg.min_score} onChange={(e) => setCfg({ ...cfg, min_score: Number(e.target.value) || 0 })} />
+                    </label>
+                    <label className="kv-row">Size USD
+                      <input inputMode="numeric" value={cfg.default_size_usd} onChange={(e) => setCfg({ ...cfg, default_size_usd: Number(e.target.value) || 0 })} />
+                    </label>
+                    <label className="kv-row">SL %
+                      <input inputMode="numeric" value={cfg.stop_loss_pct} onChange={(e) => setCfg({ ...cfg, stop_loss_pct: Number(e.target.value) || 0 })} />
+                    </label>
+                    <label className="kv-row">TP %
+                      <input inputMode="numeric" value={cfg.take_profit_pct} onChange={(e) => setCfg({ ...cfg, take_profit_pct: Number(e.target.value) || 0 })} />
+                    </label>
+                  </div>
 
-              <button className="header__nav-item header__nav-item--active" onClick={handleSaveConfig} disabled={savingCfg}>
-                {savingCfg ? 'Saving...' : 'Save Strategy Settings'}
-              </button>
+                  <button className="header__nav-item header__nav-item--active" onClick={handleSaveConfig} disabled={savingCfg}>
+                    {savingCfg ? 'Saving...' : 'Save Strategy Settings'}
+                  </button>
+                </>
+              )}
+
+              {tab === 'prediction' && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 10 }}>
+                  <div className="section" style={{ margin: 0 }}>
+                    <div className="kv-row"><span className="kv-row__key">Signal Quality</span><span className="kv-row__value">{(conv?.avg_score || 0).toFixed(1)}</span></div>
+                    <div className="kv-row"><span className="kv-row__key">Win Rate</span><span className="kv-row__value">{conv?.win_rate || 0}%</span></div>
+                    <div className="kv-row"><span className="kv-row__key">Pending</span><span className="kv-row__value">{conv?.pending || 0}</span></div>
+                  </div>
+                  <div className="section" style={{ margin: 0 }}>
+                    <div className="kv-row"><span className="kv-row__key">Recent Signals</span><span className="kv-row__value">{convergence.length}</span></div>
+                    <div className="kv-row"><span className="kv-row__key">Open Positions</span><span className="kv-row__value">{paper?.open_trades || 0}</span></div>
+                    <div className="kv-row"><span className="kv-row__key">Net P&L</span><span className="kv-row__value">{fmtUsd(totalPnl)}</span></div>
+                  </div>
+                </div>
+              )}
+
+              {tab === 'plasticity' && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 10 }}>
+                  <div className="section" style={{ margin: 0 }}>
+                    <div className="kv-row"><span className="kv-row__key">Adaptation Mode</span><span className="kv-row__value">Conservative</span></div>
+                    <div className="kv-row"><span className="kv-row__key">Drift Detection</span><span className="kv-row__value">Active</span></div>
+                    <div className="kv-row"><span className="kv-row__key">Volatility Gate</span><span className="kv-row__value">On</span></div>
+                  </div>
+                  <div className="section" style={{ margin: 0 }}>
+                    <div className="kv-row"><span className="kv-row__key">Wallet Cohesion</span><span className="kv-row__value">{dashboard?.activeWallets || 0} tracked</span></div>
+                    <div className="kv-row"><span className="kv-row__key">Learning Queue</span><span className="kv-row__value">{trades.length}</span></div>
+                    <div className="kv-row"><span className="kv-row__key">Last Sync</span><span className="kv-row__value">{now.toLocaleTimeString()}</span></div>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="section">
+            {tab === 'strategies' && <div className="section">
               <div className="section__header">
                 <span className="section__title">Wallet Manager</span>
                 <span className="section__badge">{wallets.length} tracked</span>
@@ -500,7 +534,7 @@ export default function App() {
                   </div>
                 ))}
               </div>
-            </div>
+            </div>}
           </div>
         </div>
       )}
@@ -544,14 +578,14 @@ function StatusItem({ label, value, green, red }: { label: string; value: string
 
 function SignalCard({ event }: { event: ConvergenceEvent }) {
   const tier = event.signal_score >= 80 ? 'high' : event.signal_score >= 60 ? 'medium' : 'low';
-  const resultColor = event.outcome_result === 'WIN' ? '#00ff41'
-    : event.outcome_result === 'LOSS' ? '#ff3344'
+  const resultColor = event.outcome_result === 'WIN' ? '#7aa2ff'
+    : event.outcome_result === 'LOSS' ? '#9aa4bf'
     : '#555';
 
   return (
     <div className={`signal-card signal-card--${tier}`}>
       <div className="signal-card__header">
-        <span className="signal-card__score" style={{ color: tier === 'high' ? '#00ff41' : tier === 'medium' ? '#ffaa00' : '#555' }}>
+        <span className="signal-card__score" style={{ color: tier === 'high' ? '#7aa2ff' : tier === 'medium' ? '#9fb3e8' : '#555' }}>
           {event.signal_score}
         </span>
         <span className="signal-card__outcome" style={{ borderColor: resultColor, color: resultColor }}>

@@ -44,13 +44,13 @@
   --text-muted: #333333;
 
   /* --- Accent colors --- */
-  --green: #00ff41;
-  --green-dim: #00cc33;
-  --green-bg: rgba(0, 255, 65, 0.06);
-  --red: #ff3344;
-  --red-dim: #cc2233;
-  --red-bg: rgba(255, 51, 68, 0.06);
-  --amber: #ffaa00;
+  --green: #7aa2ff;
+  --green-dim: #5f8df5;
+  --green-bg: rgba(122, 162, 255, 0.12);
+  --red: #b8c0d4;
+  --red-dim: #9aa4bf;
+  --red-bg: rgba(184, 192, 212, 0.10);
+  --amber: #9fb3e8;
   --amber-dim: #cc8800;
   --amber-bg: rgba(255, 170, 0, 0.06);
   --blue: #4488ff;
@@ -112,6 +112,16 @@ input, select {
   color: var(--text-primary);
   padding: 8px;
   font-size: 12px;
+}
+
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield;
 }
 
 #root {
