@@ -18,6 +18,14 @@ export function EquityCurve({ data, height = 200 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<Chart | null>(null);
 
+  if (!data || data.length === 0) {
+    return (
+      <div className="chart-container" style={{ height, display: 'grid', placeItems: 'center', color: '#666', fontSize: 12 }}>
+        No paper trades yet
+      </div>
+    );
+  }
+
   useEffect(() => {
     if (!canvasRef.current) return;
 
@@ -32,14 +40,8 @@ export function EquityCurve({ data, height = 200 }: Props) {
     });
     const values = data.map(d => d.equity);
 
-    // --- If no data, show placeholder ---
-    if (values.length === 0) {
-      // Generate demo curve for visual placeholder
-      for (let i = 0; i < 50; i++) {
-        labels.push(`${i}`);
-        values.push(Math.sin(i * 0.1) * 20 + i * 8 + Math.random() * 10);
-      }
-    }
+    // --- No synthetic data ---
+    // If there are no paper trades yet, keep chart empty so UI reflects reality.
 
     const lastValue = values[values.length - 1] || 0;
 
