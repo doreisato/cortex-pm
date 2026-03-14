@@ -81,7 +81,7 @@ export function EquityCurve({ data, height = 200 }: Props) {
             padding: 8,
             displayColors: false,
             callbacks: {
-              label: (ctx) => `$${ctx.parsed.y.toFixed(2)}`,
+              label: (ctx) => `$${(ctx.parsed.y ?? 0).toFixed(2)}`,
             },
           },
         },
