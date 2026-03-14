@@ -5,7 +5,7 @@
 // Pure canvas — no Three.js dependency for simplicity.
 // ============================================================
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface Node {
   x: number;
@@ -21,6 +21,7 @@ export function NeuralTopology({ walletCount = 20 }: { walletCount?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
   const nodesRef = useRef<Node[]>([]);
+  const [stats, setStats] = useState({ nodes: 0, edges: 0 });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -65,6 +66,23 @@ export function NeuralTopology({ walletCount = 20 }: { walletCount?: number }) {
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+      // Faint grid background
+      ctx.strokeStyle = 'rgba(10,10,10,0.8)';
+      ctx.lineWidth = 1;
+      const spacing = 80;
+      for (let gx = 0; gx < canvas.width; gx += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(gx, 0);
+        ctx.lineTo(gx, canvas.height);
+        ctx.stroke();
+      }
+      for (let gy = 0; gy < canvas.height; gy += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(0, gy);
+        ctx.lineTo(canvas.width, gy);
+        ctx.stroke();
+      }
+
       // --- Update positions ---
       for (const node of nodes) {
         node.x += node.vx;
@@ -86,6 +104,7 @@ export function NeuralTopology({ walletCount = 20 }: { walletCount?: number }) {
       }
 
       // --- Draw connections ---
+      let edgeCount = 0;
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const dx = nodes[i].x - nodes[j].x;
@@ -96,6 +115,7 @@ export function NeuralTopology({ walletCount = 20 }: { walletCount?: number }) {
             const alpha = (1 - dist / CONNECTION_DIST) * 0.3;
             nodes[i].connections++;
             nodes[j].connections++;
+            edgeCount++;
 
             ctx.beginPath();
             ctx.moveTo(nodes[i].x, nodes[i].y);
@@ -111,9 +131,9 @@ export function NeuralTopology({ walletCount = 20 }: { walletCount?: number }) {
       for (const node of nodes) {
         const pulse = Math.sin(frame * 0.02 + node.x * 0.01) * 0.2 + 0.8;
         const alpha = node.brightness * pulse;
-        const r = node.radius * (node.connections > 3 ? 1.5 : 1);
+        const isHub = node.connections > 6;
+        const r = node.radius * (isHub ? 2.1 : node.connections > 3 ? 1.5 : 1);
 
-        // Outer glow for high-connection nodes
         if (node.connections > 4) {
           ctx.beginPath();
           ctx.arc(node.x, node.y, r * 4, 0, Math.PI * 2);
@@ -121,13 +141,25 @@ export function NeuralTopology({ walletCount = 20 }: { walletCount?: number }) {
           ctx.fill();
         }
 
-        // Node dot
+        if (isHub) {
+          const ringPulse = (Math.sin(frame * 0.06) + 1) / 2;
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, r * (2.2 + ringPulse * 0.9), 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(122, 162, 255, ${0.16 + ringPulse * 0.18})`;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+
         ctx.beginPath();
         ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
         ctx.fillStyle = node.connections > 4
           ? `rgba(122, 162, 255, ${alpha})`
           : `rgba(255, 255, 255, ${alpha})`;
         ctx.fill();
+      }
+
+      if (frame % 20 === 0) {
+        setStats({ nodes: nodes.length, edges: edgeCount });
       }
 
       animRef.current = requestAnimationFrame(animate);
@@ -144,6 +176,9 @@ export function NeuralTopology({ walletCount = 20 }: { walletCount?: number }) {
   return (
     <div className="topology-container">
       <canvas ref={canvasRef} />
+      <div style={{ position: 'absolute', right: 8, bottom: 6, fontSize: 9, color: '#555', letterSpacing: '0.08em' }}>
+        {stats.nodes} nodes · {stats.edges} edges
+      </div>
     </div>
   );
 }

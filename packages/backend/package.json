@@ -7,7 +7,10 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test:apis": "tsx src/test/validate-apis.ts"
+    "test:apis": "tsx src/test/validate-apis.ts",
+    "test:pricing": "tsx src/test/validate-pricing.ts",
+    "seed:wallets": "tsx src/scripts/seed-wallets.ts",
+    "check:wallets": "tsx src/scripts/check-wallets.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

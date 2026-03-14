@@ -5,6 +5,7 @@
 // ============================================================
 
 import { useEffect, useRef } from 'react';
+import { EmptyState } from './EmptyState';
 import { Chart, registerables } from 'chart.js';
 
 Chart.register(...registerables);
@@ -20,8 +21,12 @@ export function EquityCurve({ data, height = 200 }: Props) {
 
   if (!data || data.length === 0) {
     return (
-      <div className="chart-container" style={{ height, display: 'grid', placeItems: 'center', color: '#666', fontSize: 12 }}>
-        No paper trades yet
+      <div className="chart-container" style={{ height }}>
+        <EmptyState
+          icon="◆"
+          title="Equity curve will appear here"
+          description="Paper trades generate P&L data points. Waiting for first convergence signal."
+        />
       </div>
     );
   }
@@ -45,7 +50,43 @@ export function EquityCurve({ data, height = 200 }: Props) {
 
     const lastValue = values[values.length - 1] || 0;
 
+    const minIdx = values.reduce((best, v, i) => (v < values[best] ? i : best), 0);
+    const maxIdx = values.reduce((best, v, i) => (v > values[best] ? i : best), 0);
+
     chartRef.current = new Chart(canvasRef.current, {
+      plugins: [{
+        id: 'cortexEquityMarkers',
+        afterDatasetsDraw(chart) {
+          const { ctx, scales: { x, y } } = chart;
+          const xMin = x.left;
+          const xMax = x.right;
+          const yZero = y.getPixelForValue(0);
+          ctx.save();
+          ctx.strokeStyle = '#1a1a1a';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(xMin, yZero);
+          ctx.lineTo(xMax, yZero);
+          ctx.stroke();
+
+          const minX = x.getPixelForValue(minIdx);
+          const minY = y.getPixelForValue(values[minIdx]);
+          ctx.strokeStyle = '#9aa4bf';
+          ctx.beginPath();
+          ctx.moveTo(minX, minY - 6);
+          ctx.lineTo(minX, minY + 6);
+          ctx.stroke();
+
+          const maxX = x.getPixelForValue(maxIdx);
+          const maxY = y.getPixelForValue(values[maxIdx]);
+          ctx.strokeStyle = '#7aa2ff';
+          ctx.beginPath();
+          ctx.moveTo(maxX, maxY - 6);
+          ctx.lineTo(maxX, maxY + 6);
+          ctx.stroke();
+          ctx.restore();
+        },
+      }],
       type: 'line',
       data: {
         labels,

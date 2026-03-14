@@ -99,6 +99,22 @@ body {
   background: var(--bg-void);
   -webkit-font-smoothing: antialiased;
   line-height: 1.5;
+  position: relative;
+}
+
+/* Subtle CRT scan-line overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(255, 255, 255, 0.015) 3px
+  );
 }
 
 input, select, button {
@@ -218,6 +234,21 @@ input[type='number'] {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@keyframes data-stream {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(100%); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* ============================================================
@@ -626,6 +657,173 @@ input[type='number'] {
 }
 
 /* ============================================================
+   SIGNAL EXPLAINABILITY CARD
+   ============================================================ */
+.signal-explain {
+  background: rgba(122, 162, 255, 0.04);
+  border: 1px solid var(--border-default);
+  border-left: 2px solid #7aa2ff;
+  padding: 12px;
+  font-size: 11px;
+  animation: fade-in 0.2s ease-out;
+}
+
+.signal-explain__label {
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 10px;
+  margin-bottom: 8px;
+}
+
+.signal-explain__factor {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.signal-explain__bar {
+  height: 4px;
+  background: #7aa2ff;
+  opacity: 0.9;
+}
+
+/* ============================================================
+   DATA FRESHNESS BADGE
+   ============================================================ */
+.freshness-badge {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.freshness-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.freshness-badge--live {
+  color: #7aa2ff;
+}
+
+.freshness-badge--live::before {
+  animation: glow-pulse 1.8s ease-in-out infinite;
+}
+
+.freshness-badge--stale {
+  color: #555;
+}
+
+.freshness-badge--error {
+  color: #ff3344;
+}
+
+/* ============================================================
+   CONTROL GROUP
+   ============================================================ */
+.control-group {
+  border: 1px solid #1a1a1a;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.control-group__title {
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  font-size: 11px;
+  color: #555;
+  margin-bottom: 12px;
+}
+
+.control-group__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.control-group__field label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10px;
+  color: #444;
+}
+
+/* ============================================================
+   CONFIDENCE BAR
+   ============================================================ */
+.confidence-bar {
+  height: 6px;
+  background: #111;
+  position: relative;
+  overflow: hidden;
+}
+
+.confidence-bar__fill {
+  height: 100%;
+  width: var(--confidence, 0%);
+  transition: width 0.3s ease;
+  background: #555;
+}
+
+.confidence-bar__fill[data-level='mid'] {
+  background: #9fb3e8;
+}
+
+.confidence-bar__fill[data-level='high'] {
+  background: #7aa2ff;
+}
+
+/* ============================================================
+   EMPTY STATE
+   ============================================================ */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #333;
+}
+
+.empty-state__icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+  color: #222;
+}
+
+.empty-state__title {
+  font-size: 13px;
+  color: #444;
+  margin-bottom: 4px;
+}
+
+.empty-state__desc {
+  font-size: 11px;
+  color: #333;
+}
+
+.empty-state__action {
+  margin-top: 12px;
+}
+
+/* ============================================================
+   ANIMATED VALUE
+   ============================================================ */
+.animated-value {
+  transition: color 0.3s ease;
+}
+
+.animated-value--changed {
+  color: #7aa2ff;
+  transition: color 0.1s ease;
+}
+
+/* ============================================================
    UTILITY CLASSES
    ============================================================ */
 .text-green { color: var(--green) !important; }
@@ -653,6 +851,63 @@ input[type='number'] {
   .main-grid .panel:last-child {
     grid-column: 1 / -1;
   }
+}
+
+/* ============================================================
+   TIMELINE RAIL
+   ============================================================ */
+.timeline-rail {
+  position: relative;
+  padding-left: 14px;
+}
+
+.timeline-rail__line {
+  position: absolute;
+  left: 3px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #1a1a1a;
+}
+
+.timeline-rail__node {
+  position: relative;
+  padding-left: 20px;
+  padding-bottom: 12px;
+}
+
+.timeline-rail__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  position: absolute;
+  left: 0;
+  top: 4px;
+}
+
+.timeline-rail__dot--signal { background: #7aa2ff; }
+.timeline-rail__dot--trade { background: #9fb3e8; }
+.timeline-rail__dot--outcome { background: #555; }
+
+/* ============================================================
+   PAGE HEADER
+   ============================================================ */
+.page-header {
+  padding: 20px 16px;
+  border-bottom: 1px solid #111;
+}
+
+.page-header__title {
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.page-header__desc {
+  font-size: 11px;
+  color: #444;
+  margin-top: 4px;
 }
 
 @media (max-width: 800px) {
@@ -688,5 +943,12 @@ input[type='number'] {
     flex-wrap: wrap;
     height: auto;
     padding: 8px 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
   }
 }
