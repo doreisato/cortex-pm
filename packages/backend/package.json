@@ -9,6 +9,10 @@
     "start": "node dist/index.js",
     "test:apis": "tsx src/test/validate-apis.ts",
     "test:pricing": "tsx src/test/validate-pricing.ts",
+    "test:convergence": "tsx src/test/validate-convergence.ts",
+    "test:paper": "tsx src/test/validate-paper-trading.ts",
+    "test:server": "tsx src/test/validate-server.ts",
+    "test:telegram": "tsx src/test/validate-telegram.ts",
     "seed:wallets": "tsx src/scripts/seed-wallets.ts",
     "check:wallets": "tsx src/scripts/check-wallets.ts"
   },

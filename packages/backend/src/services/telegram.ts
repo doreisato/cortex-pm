@@ -7,6 +7,13 @@ import { config } from '../config.js';
 
 const API_BASE = `https://api.telegram.org/bot${config.telegram.botToken}`;
 
+function esc(input: unknown): string {
+  return String(input ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 async function send(text: string): Promise<void> {
   if (!config.telegram.enabled || !config.telegram.botToken || !config.telegram.chatId) {
     console.log('[TELEGRAM] Disabled or not configured, skipping alert');
@@ -37,17 +44,17 @@ async function send(text: string): Promise<void> {
 
 export async function sendConvergenceAlert(event: any): Promise<void> {
   const emoji = event.signal_score >= 80 ? '🔴' : event.signal_score >= 60 ? '🟡' : '⚪';
-  const polymarketUrl = `https://polymarket.com/event/${event.market_slug}`;
+  const polymarketUrl = `https://polymarket.com/event/${encodeURIComponent(String(event.market_slug || ''))}`;
 
   const text = [
     `${emoji} <b>CORTEX CONVERGENCE SIGNAL</b>`,
     ``,
-    `<b>Market:</b> ${event.market_question}`,
-    `<b>Outcome:</b> ${event.outcome}`,
-    `<b>Score:</b> ${event.signal_score}/100`,
-    `<b>Wallets:</b> ${event.wallet_count} (${(event.wallet_labels || []).join(', ')})`,
-    `<b>Total USD:</b> $${(event.total_buy_usd || 0).toFixed(2)}`,
-    `<b>Price:</b> $${(event.price_at_detection || 0).toFixed(3)}`,
+    `<b>Market:</b> ${esc(event.market_question)}`,
+    `<b>Outcome:</b> ${esc(event.outcome)}`,
+    `<b>Score:</b> ${esc(event.signal_score)}/100`,
+    `<b>Wallets:</b> ${esc(event.wallet_count)} (${esc((event.wallet_labels || []).join(', '))})`,
+    `<b>Total USD:</b> $${Number(event.total_buy_usd || 0).toFixed(2)}`,
+    `<b>Price:</b> $${Number(event.price_at_detection || 0).toFixed(3)}`,
     ``,
     `<a href="${polymarketUrl}">View on Polymarket</a>`,
   ].join('\n');
@@ -61,12 +68,12 @@ export async function sendTradeAlert(trade: any, action: 'OPEN' | 'CLOSE'): Prom
   const text = [
     `${emoji} <b>PAPER TRADE ${action}</b>`,
     ``,
-    `<b>Market:</b> ${trade.market_question}`,
-    `<b>Side:</b> ${trade.outcome}`,
+    `<b>Market:</b> ${esc(trade.market_question)}`,
+    `<b>Side:</b> ${esc(trade.outcome)}`,
     action === 'OPEN'
-      ? `<b>Entry:</b> $${trade.entry_price.toFixed(3)} | Size: $${trade.cost_basis.toFixed(2)}`
-      : `<b>Exit:</b> $${trade.exit_price.toFixed(3)} | PnL: $${trade.realized_pnl.toFixed(2)}`,
-    action === 'CLOSE' ? `<b>Reason:</b> ${trade.close_reason}` : '',
+      ? `<b>Entry:</b> $${Number(trade.entry_price || 0).toFixed(3)} | Size: $${Number(trade.cost_basis || 0).toFixed(2)}`
+      : `<b>Exit:</b> $${Number(trade.exit_price || 0).toFixed(3)} | PnL: $${Number(trade.realized_pnl || 0).toFixed(2)}`,
+    action === 'CLOSE' ? `<b>Reason:</b> ${esc(trade.close_reason)}` : '',
   ].filter(Boolean).join('\n');
 
   await send(text);

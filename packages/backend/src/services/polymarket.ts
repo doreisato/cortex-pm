@@ -11,6 +11,46 @@
 
 import { config } from '../config.js';
 
+// --- Operational metrics (used by /api/health/detailed) ---
+const pmMetrics = {
+  total_api_calls: 0,
+  failed_api_calls: 0,
+  rate_limited_count: 0,
+};
+
+export function getPolymarketMetrics() {
+  return { ...pmMetrics };
+}
+
+// --- Simple token-bucket limiter: 10 requests/second max ---
+const RATE_PER_SEC = 10;
+let tokens = RATE_PER_SEC;
+let lastRefillMs = Date.now();
+
+function refillTokens() {
+  const now = Date.now();
+  const elapsedSec = (now - lastRefillMs) / 1000;
+  if (elapsedSec <= 0) return;
+  tokens = Math.min(RATE_PER_SEC, tokens + elapsedSec * RATE_PER_SEC);
+  lastRefillMs = now;
+}
+
+async function rateLimitAcquire(): Promise<void> {
+  refillTokens();
+  if (tokens >= 1) {
+    tokens -= 1;
+    return;
+  }
+
+  // Queue/retry with delay derived from refill rate.
+  const delay = Math.ceil(1000 / RATE_PER_SEC);
+  pmMetrics.rate_limited_count += 1;
+  console.log(`[POLYMARKET] Rate limited. Queued. Retrying in ${delay}ms`);
+  await new Promise((r) => setTimeout(r, delay));
+  return rateLimitAcquire();
+}
+
+
 // --- Types ---
 
 export interface PolymarketMarket {
@@ -80,25 +120,60 @@ export interface OrderBook {
 // ============================================================
 async function apiFetch<T>(url: string, label: string): Promise<T | null> {
   const startMs = Date.now();
-  try {
-    const res = await fetch(url, {
-      headers: { 'Accept': 'application/json' },
-    });
+  const maxRetries = 2;
 
-    if (!res.ok) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    await rateLimitAcquire();
+    pmMetrics.total_api_calls += 1;
+
+    try {
+      const res = await fetch(url, {
+        headers: { 'Accept': 'application/json' },
+      });
+
+      if (res.ok) {
+        const data = await res.json() as T;
+        const elapsed = Date.now() - startMs;
+        console.log(`[POLYMARKET] ${label} OK (${elapsed}ms)`);
+        return data;
+      }
+
+      // Retry policy
+      if (attempt < maxRetries && res.status === 429) {
+        const retryAfter = Number(res.headers.get('retry-after') || '5');
+        const delay = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 5000;
+        pmMetrics.rate_limited_count += 1;
+        console.log(`[POLYMARKET] ${label} RETRY ${attempt + 1}/${maxRetries} on 429. Waiting ${delay}ms`);
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+
+      if (attempt < maxRetries && [500, 502, 503].includes(res.status)) {
+        const delay = 2000;
+        console.log(`[POLYMARKET] ${label} RETRY ${attempt + 1}/${maxRetries} on ${res.status}. Waiting ${delay}ms`);
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+
+      pmMetrics.failed_api_calls += 1;
       console.error(`[POLYMARKET] ${label} FAILED: HTTP ${res.status} — ${url}`);
       return null;
+    } catch (err) {
+      if (attempt < maxRetries) {
+        const delay = 3000;
+        console.log(`[POLYMARKET] ${label} RETRY ${attempt + 1}/${maxRetries} on network error. Waiting ${delay}ms`);
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+      pmMetrics.failed_api_calls += 1;
+      const elapsed = Date.now() - startMs;
+      console.error(`[POLYMARKET] ${label} ERROR (${elapsed}ms):`, (err as Error).message);
+      return null;
     }
-
-    const data = await res.json() as T;
-    const elapsed = Date.now() - startMs;
-    console.log(`[POLYMARKET] ${label} OK (${elapsed}ms)`);
-    return data;
-  } catch (err) {
-    const elapsed = Date.now() - startMs;
-    console.error(`[POLYMARKET] ${label} ERROR (${elapsed}ms):`, (err as Error).message);
-    return null;
   }
+
+  pmMetrics.failed_api_calls += 1;
+  return null;
 }
 
 

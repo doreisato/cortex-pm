@@ -7,12 +7,31 @@
 import { Router } from 'express';
 import { createClient } from '@supabase/supabase-js';
 import { config } from '../config.js';
-import { getMarkets, getMidpoint, getOrderBook } from '../services/polymarket.js';
-import { addWallet, getActiveWallets } from '../services/wallet-tracker.js';
+import { getMarkets, getMidpoint, getOrderBook, getPolymarketMetrics } from '../services/polymarket.js';
+import { addWallet, getActiveWallets, getWalletTrackerStatus } from '../services/wallet-tracker.js';
 import { getPortfolioSummary } from '../services/paper-trader.js';
 
 const router = Router();
 const supabase = createClient(config.supabase.url, config.supabase.serviceKey);
+const startedAt = Date.now();
+
+// ============================================================
+// DETAILED HEALTH / UPTIME METRICS
+// ============================================================
+router.get('/health/detailed', async (_req, res) => {
+  const pm = getPolymarketMetrics();
+  const wt = getWalletTrackerStatus();
+  res.json({
+    uptime_seconds: Math.floor((Date.now() - startedAt) / 1000),
+    total_api_calls: pm.total_api_calls,
+    failed_api_calls: pm.failed_api_calls,
+    rate_limited_count: pm.rate_limited_count,
+    wallets_tracked: wt.wallets_tracked,
+    last_poll_time: wt.last_poll_time,
+    circuit_open: wt.circuit_open,
+    consecutive_failures: wt.consecutive_failures,
+  });
+});
 
 // ============================================================
 // DASHBOARD — Aggregate stats for main view

@@ -75,7 +75,7 @@ export async function openPaperTrade(event: any, currentPrice: number): Promise<
 // ============================================================
 // Update all open positions with current prices
 // ============================================================
-async function updateOpenPositions(): Promise<void> {
+export async function updateOpenPositions(): Promise<void> {
   const { data: positions, error } = await supabase
     .from('paper_trades')
     .select('*')

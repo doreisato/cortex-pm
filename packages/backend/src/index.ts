@@ -17,9 +17,9 @@ import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { config } from './config.js';
 import apiRoutes from './routes/api.js';
-import { initWalletTracker, startPolling } from './services/wallet-tracker.js';
-import { initConvergenceDetector, startDetection, convergenceEvents } from './services/convergence.js';
-import { initPaperTrader, startPaperTrader } from './services/paper-trader.js';
+import { initWalletTracker, startPolling, stopPolling } from './services/wallet-tracker.js';
+import { initConvergenceDetector, startDetection, stopDetection, convergenceEvents } from './services/convergence.js';
+import { initPaperTrader, startPaperTrader, stopPaperTrader } from './services/paper-trader.js';
 import { walletEvents } from './services/wallet-tracker.js';
 
 // ============================================================
@@ -128,3 +128,31 @@ server.listen(config.port, () => {
 
   console.log('[SERVER] All systems active ◆');
 });
+
+let shuttingDown = false;
+function gracefulShutdown(signal: string) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`[SERVER] Shutting down gracefully... (${signal})`);
+
+  stopPolling();
+  stopDetection();
+  stopPaperTrader();
+
+  for (const c of clients) {
+    try { c.close(); } catch {}
+  }
+
+  const hardTimeout = setTimeout(() => {
+    console.error('[SERVER] Forced shutdown after timeout');
+    process.exit(1);
+  }, 5000);
+
+  server.close(() => {
+    clearTimeout(hardTimeout);
+    process.exit(0);
+  });
+}
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
