@@ -18,6 +18,7 @@ import { getMidpoint } from './polymarket.js';
 import { walletEvents } from './wallet-tracker.js';
 import { openPaperTrade } from './paper-trader.js';
 import { sendConvergenceAlert } from './telegram.js';
+import { analyzeSentiment } from './sentiment.js';
 import { EventEmitter } from 'events';
 
 export const convergenceEvents = new EventEmitter();
@@ -181,12 +182,43 @@ async function detectConvergence(): Promise<void> {
     // --- 9. Emit event for downstream consumers ---
     convergenceEvents.emit('convergence', inserted);
 
+    // --- 9.5 Layer 2 sentiment enrichment (non-blocking) ---
+    // Event already exists; failures here should never block the core pipeline.
+    let enrichedEvent: any = inserted;
+    try {
+      const sentiment = await analyzeSentiment({
+        marketQuestion: inserted.market_question || firstTrade.market_question || '',
+        outcome: inserted.outcome || firstTrade.outcome || 'Unknown',
+        currentPrice: Number(currentPrice || inserted.price_at_detection || 0),
+      });
+
+      const { error: sErr } = await supabase
+        .from('convergence_events')
+        .update({
+          sentiment_score: sentiment.score,
+          sentiment_narrative: sentiment.narrative,
+        })
+        .eq('id', inserted.id);
+
+      if (!sErr) {
+        enrichedEvent = {
+          ...inserted,
+          sentiment_score: sentiment.score,
+          sentiment_narrative: sentiment.narrative,
+        };
+      } else {
+        console.error('[CONVERGENCE] Sentiment update error:', sErr.message);
+      }
+    } catch (err) {
+      console.error('[CONVERGENCE] Sentiment analyze error:', (err as Error).message);
+    }
+
     // --- 10. Send Telegram alert ---
-    await sendConvergenceAlert(inserted);
+    await sendConvergenceAlert(enrichedEvent);
 
     // --- 11. Open paper trade if enabled ---
     if (config.paperTrading.enabled && currentPrice) {
-      await openPaperTrade(inserted, currentPrice);
+      await openPaperTrade(enrichedEvent, currentPrice);
     }
   }
 }

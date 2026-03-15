@@ -731,6 +731,12 @@ function SignalCard({ event, expanded, onToggle }: { event: ConvergenceEvent; ex
         <span>{fmtUsd(event.total_buy_usd)}</span>
         <span>{timeAgo(event.detected_at)}</span>
       </div>
+      {event.sentiment_score !== undefined && event.sentiment_score !== null && (
+        <div style={{ marginTop: 6, fontSize: 11, color: event.sentiment_score > 0.3 ? '#00ff41' : event.sentiment_score < -0.3 ? '#ff3344' : '#ffaa00' }} title={event.sentiment_narrative || ''}>
+          Sentiment: {event.sentiment_score.toFixed(2)}
+          {event.sentiment_narrative ? <span style={{ color: '#666', marginLeft: 6 }}>{truncate(event.sentiment_narrative, 80)}</span> : null}
+        </div>
+      )}
 
       <div style={{ maxHeight: expanded ? 280 : 0, overflow: 'hidden', transition: 'max-height 0.25s ease', marginTop: expanded ? 10 : 0 }}>
         <div className="signal-explain">

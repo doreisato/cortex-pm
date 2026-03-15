@@ -105,6 +105,8 @@ export interface ConvergenceEvent {
   price_4h: number | null;
   price_24h: number | null;
   outcome_result: 'WIN' | 'LOSS' | 'PENDING' | 'EXPIRED';
+  sentiment_score?: number | null;
+  sentiment_narrative?: string | null;
   detected_at: string;
 }
 

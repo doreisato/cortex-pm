@@ -55,6 +55,12 @@ export async function sendConvergenceAlert(event: any): Promise<void> {
     `<b>Wallets:</b> ${esc(event.wallet_count)} (${esc((event.wallet_labels || []).join(', '))})`,
     `<b>Total USD:</b> $${Number(event.total_buy_usd || 0).toFixed(2)}`,
     `<b>Price:</b> $${Number(event.price_at_detection || 0).toFixed(3)}`,
+    ...(event.sentiment_score !== undefined && event.sentiment_score !== null
+      ? [
+          `<b>Sentiment:</b> ${Number(event.sentiment_score).toFixed(2)} (${Number(event.sentiment_score) > 0.3 ? 'bullish' : Number(event.sentiment_score) < -0.3 ? 'bearish' : 'neutral'})`,
+          `${esc(event.sentiment_narrative || '')}`,
+        ]
+      : []),
     ``,
     `<a href="${polymarketUrl}">View on Polymarket</a>`,
   ].join('\n');
