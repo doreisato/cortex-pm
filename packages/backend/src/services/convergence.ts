@@ -19,6 +19,7 @@ import { walletEvents } from './wallet-tracker.js';
 import { openPaperTrade } from './paper-trader.js';
 import { sendConvergenceAlert } from './telegram.js';
 import { analyzeSentiment } from './sentiment.js';
+import { getHistoricalInsight } from './insight.js';
 import { EventEmitter } from 'events';
 
 export const convergenceEvents = new EventEmitter();
@@ -211,6 +212,32 @@ async function detectConvergence(): Promise<void> {
       }
     } catch (err) {
       console.error('[CONVERGENCE] Sentiment analyze error:', (err as Error).message);
+    }
+
+    // --- 9.6 Historical insight enrichment (non-blocking) ---
+    try {
+      const insight = await getHistoricalInsight({
+        marketQuestion: enrichedEvent.market_question || firstTrade.market_question || '',
+        outcome: enrichedEvent.outcome || firstTrade.outcome || 'Unknown',
+        walletCount: Number(enrichedEvent.wallet_count || walletCount || 0),
+        signalScore: Number(enrichedEvent.signal_score || score || 0),
+      });
+
+      const { error: iErr } = await supabase
+        .from('convergence_events')
+        .update({ historical_insight: insight })
+        .eq('id', inserted.id);
+
+      if (!iErr) {
+        enrichedEvent = {
+          ...enrichedEvent,
+          historical_insight: insight,
+        };
+      } else {
+        console.error('[CONVERGENCE] Historical insight update error:', iErr.message);
+      }
+    } catch (err) {
+      console.error('[CONVERGENCE] Historical insight error:', (err as Error).message);
     }
 
     // --- 10. Send Telegram alert ---

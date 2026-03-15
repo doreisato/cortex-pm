@@ -108,6 +108,24 @@ router.get('/convergence/stats', async (_req, res) => {
   res.json(data || {});
 });
 
+router.get('/convergence/:id/insight', async (req, res) => {
+  const { data, error } = await supabase
+    .from('convergence_events')
+    .select('id,historical_insight,market_question,outcome,signal_score,wallet_count')
+    .eq('id', req.params.id)
+    .single();
+
+  if (error) return res.status(404).json({ error: error.message });
+  res.json({
+    id: data.id,
+    market_question: data.market_question,
+    outcome: data.outcome,
+    signal_score: data.signal_score,
+    wallet_count: data.wallet_count,
+    historical_insight: data.historical_insight || null,
+  });
+});
+
 
 // ============================================================
 // PAPER TRADES

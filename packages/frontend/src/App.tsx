@@ -732,9 +732,14 @@ function SignalCard({ event, expanded, onToggle }: { event: ConvergenceEvent; ex
         <span>{timeAgo(event.detected_at)}</span>
       </div>
       {event.sentiment_score !== undefined && event.sentiment_score !== null && (
-        <div style={{ marginTop: 6, fontSize: 11, color: event.sentiment_score > 0.3 ? '#00ff41' : event.sentiment_score < -0.3 ? '#ff3344' : '#ffaa00' }} title={event.sentiment_narrative || ''}>
+        <div style={{ marginTop: 6, fontSize: 11, color: event.sentiment_score > 0.3 ? '#7aa2ff' : event.sentiment_score < -0.3 ? '#9aa4bf' : '#9fb3e8' }} title={event.sentiment_narrative || ''}>
           Sentiment: {event.sentiment_score.toFixed(2)}
           {event.sentiment_narrative ? <span style={{ color: '#666', marginLeft: 6 }}>{truncate(event.sentiment_narrative, 80)}</span> : null}
+        </div>
+      )}
+      {event.historical_insight?.confidence && event.historical_insight.confidence > 0.5 && (
+        <div style={{ marginTop: 4, fontSize: 10, color: '#666' }}>
+          Historical: {event.historical_insight.historical_win_rate}% ({event.historical_insight.historical_matches} similar)
         </div>
       )}
 

@@ -107,6 +107,13 @@ export interface ConvergenceEvent {
   outcome_result: 'WIN' | 'LOSS' | 'PENDING' | 'EXPIRED';
   sentiment_score?: number | null;
   sentiment_narrative?: string | null;
+  historical_insight?: {
+    historical_matches: number;
+    historical_win_rate: number;
+    avg_pnl: number;
+    pattern_description: string;
+    confidence: number;
+  } | null;
   detected_at: string;
 }
 

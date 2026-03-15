@@ -61,6 +61,12 @@ export async function sendConvergenceAlert(event: any): Promise<void> {
           `${esc(event.sentiment_narrative || '')}`,
         ]
       : []),
+    ...(event.historical_insight?.confidence > 0.5
+      ? [
+          `<b>Historical:</b> ${event.historical_insight.historical_win_rate}% win (${event.historical_insight.historical_matches} similar)`,
+          `${esc(event.historical_insight.pattern_description || '')}`,
+        ]
+      : []),
     ``,
     `<a href="${polymarketUrl}">View on Polymarket</a>`,
   ].join('\n');
